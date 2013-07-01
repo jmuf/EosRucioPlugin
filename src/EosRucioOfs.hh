@@ -76,6 +76,19 @@ class EosRucioOfs: public XrdOfs
             const XrdSecEntity*     client,
             const char*             opaque = 0 );
 
+  //!!!!!!!!!!! XXX !!!!!!!!!!!!!!!!!
+  //TODO: move this in the private section or create a new class 
+  //----------------------------------------------------------------------------
+  //! Translate logical file name to physical file name using the Rucio alg.
+  //!
+  //! @param lfn logical file name
+  //!
+  //! @return translated physical file name
+  //!
+  //----------------------------------------------------------------------------
+  std::string Translate(std::string lfn);
+
+
  private:
 
   ///! map between space tokend and their priorities
@@ -84,7 +97,7 @@ class EosRucioOfs: public XrdOfs
   std::string mSiteName; ///! site parameter for the Rucio translation
   std::string mJsonFile; ///! local json file for the Rucio translation
   std::string mAgisSite; ///! AGIS site for Rucio translation
-
+  
 
   //----------------------------------------------------------------------------
   //! Read space tokens configuration from the AGIS site. If this is successful

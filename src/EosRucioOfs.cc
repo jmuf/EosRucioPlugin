@@ -28,6 +28,7 @@
 #include <sstream>
 #include <fcntl.h>
 #include <curl/curl.h>
+#include <openssl/md5.h>
 #include "rapidjson/document.h"
 /*----------------------------------------------------------------------------*/
 #include "EosRucioOfs.hh"
@@ -308,48 +309,71 @@ EosRucioOfs::stat(const char* path,
 }
 
 
-//******************************************************************************
-//                        E o s R u c i o O f s F i l e
-//******************************************************************************
-
-
 //------------------------------------------------------------------------------
-// Constructor 
+// Translate logical file name to physical file name using the Rucio alg.
 //------------------------------------------------------------------------------
-EosRucioOfsFile::EosRucioOfsFile(const char *user, int MonID):
-    XrdOfsFile(user, MonID)
+std::string
+EosRucioOfs::Translate(std::string lfn)
 {
-  OfsEroute.Emsg("EosRucioOfsFile", "Calling constructor");
+  std::string pfn = "";
+  std::string file_name = "";
+  std::string scope = "";
+  std::string prefix = "/atlas/rucio/";
+
+  // We only translate file names that begin with /atlas
+  if (lfn.compare(0, prefix.length(), prefix) == 0)
+  {
+    std::string tmp = lfn.substr(prefix.length(), lfn.length() - prefix.length());
+    size_t last_colon = tmp.find_last_of(':');
+
+    if (last_colon != std::string::npos)
+    {
+      file_name = tmp.substr(last_colon + 1);
+      scope = tmp.substr(0, last_colon);
+    }
+    else
+    {
+      size_t last_slash = tmp.find_last_of('/');
+      file_name = tmp.substr(last_slash + 1);
+      scope = tmp.substr(0, last_slash);
+    }
+
+    if (file_name.empty() || scope.empty())
+    {
+      OfsEroute.Emsg("Translate", "Error extracting scope and/or file name");
+      return pfn;
+    }
+
+    OfsEroute.Say("File name: ", file_name.c_str(), " scope: ", scope.c_str());
+    std::string scope_file = scope + ":" + file_name;
+    
+    // Compute the MD5 hash 
+    unsigned char digest[MD5_DIGEST_LENGTH];
+    MD5((unsigned char*) scope_file.c_str(), scope_file.length(), (unsigned char*)&digest);
+
+    // Now we need to 0 pad it to get the full 32 chars
+    char zero_pad[3];
+    zero_pad[2] = '\0';
+    std::string md5_string;
+    md5_string.reserve(32);
+    
+    for (int i = 0; i < 16; i++)
+    {
+      sprintf(&zero_pad[0], "%02x", (unsigned int)digest[i]);
+      md5_string.append(zero_pad);
+    }
+     
+    OfsEroute.Say("MD5 string is: ", md5_string.c_str());   
+
+    std::stringstream sstr;
+    sstr << "/rucio/" << scope << "/" << md5_string.substr(0, 2) << "/" <<
+      md5_string.substr(2, 4) << "/" << file_name;
+    pfn = sstr.str();    
+  }
+
+  OfsEroute.Say("Pfn is: ", pfn.c_str());
+  return pfn;
 }
-
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-EosRucioOfsFile::~EosRucioOfsFile()
-{
-  //empty
-}
-
-
-//------------------------------------------------------------------------------
-// Open file
-//------------------------------------------------------------------------------
-int
-EosRucioOfsFile::open(const char* fileName,
-                      XrdSfsFileOpenMode openMode,
-                      mode_t createMode,
-                      const XrdSecEntity* client,
-                      const char* opaque)
-{
-  OfsEroute.Emsg("EosRucioOfsFile::open", "Calling function");
-
-  // TODO: compute the Rucio pfn using the algorithm and redirect to the correct
-  // location. Also need to do a stat.
-  
-  return SFS_REDIRECT;
-}
-
 
 
 //------------------------------------------------------------------------------
@@ -585,4 +609,49 @@ EosRucioOfs::ReadLocalJson(std::string path)
 
   return done;
 }
+
+
+//******************************************************************************
+//                        E o s R u c i o O f s F i l e
+//******************************************************************************
+
+
+//------------------------------------------------------------------------------
+// Constructor 
+//------------------------------------------------------------------------------
+EosRucioOfsFile::EosRucioOfsFile(const char *user, int MonID):
+    XrdOfsFile(user, MonID)
+{
+  OfsEroute.Emsg("EosRucioOfsFile", "Calling constructor");
+}
+
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+EosRucioOfsFile::~EosRucioOfsFile()
+{
+  //empty
+}
+
+
+//------------------------------------------------------------------------------
+// Open file
+//------------------------------------------------------------------------------
+int
+EosRucioOfsFile::open(const char* fileName,
+                      XrdSfsFileOpenMode openMode,
+                      mode_t createMode,
+                      const XrdSecEntity* client,
+                      const char* opaque)
+{
+  OfsEroute.Emsg("EosRucioOfsFile::open", "Calling function");
+
+  // TODO: compute the Rucio pfn using the algorithm and redirect to the correct
+  // location. Also need to do a stat.
+  std::string pfn = gOFS->Translate(fileName);
+  
+  return SFS_REDIRECT;
+}
+
 

@@ -51,6 +51,7 @@ endif(MacOSX)
 
 find_package(XRootD REQUIRED)
 find_package(curl REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 set(CMAKE_INSTALL_PREFIX /usr/)
 add_subdirectory(src)

@@ -30,7 +30,7 @@ add_library( EosRucioOfs MODULE
 	     EosRucioOfs.cc         EosRucioOfs.hh
 	     )
 
-target_link_libraries( EosRucioOfs XrdOfs XrdServer ${CURL_LIBRARIES})
+target_link_libraries( EosRucioOfs XrdOfs XrdServer ${CURL_LIBRARIES} crypto)
 
 if (Linux)
   set_target_properties ( EosRucioOfs PROPERTIES
