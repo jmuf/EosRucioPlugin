@@ -50,6 +50,7 @@ set(LIB_INSTALL_DIR lib64)
 endif(MacOSX)
 
 find_package(XRootD REQUIRED)
+find_package(curl REQUIRED)
 
 set(CMAKE_INSTALL_PREFIX /usr/)
 add_subdirectory(src)

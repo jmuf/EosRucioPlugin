@@ -22,6 +22,7 @@
 # ************************************************************************
 
 include_directories( ./  
+		     ${CURL_INCLUDE_DIRS}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} )
 
@@ -29,7 +30,7 @@ add_library( EosRucioOfs MODULE
 	     EosRucioOfs.cc         EosRucioOfs.hh
 	     )
 
-target_link_libraries( EosRucioOfs XrdOfs XrdServer )
+target_link_libraries( EosRucioOfs XrdOfs XrdServer ${CURL_LIBRARIES})
 
 if (Linux)
   set_target_properties ( EosRucioOfs PROPERTIES

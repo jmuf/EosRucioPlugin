@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include <string>
+#include <map>
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -47,7 +48,25 @@ class EosRucioOfs: public XrdOfs
   //----------------------------------------------------------------------------
   virtual ~EosRucioOfs();
 
- 
+
+  //----------------------------------------------------------------------------
+  //! New directory
+  //----------------------------------------------------------------------------
+  XrdSfsDirectory *newDir(char *user = 0, int MonID = 0);
+
+
+  //----------------------------------------------------------------------------
+  //! New file
+  //----------------------------------------------------------------------------
+  XrdSfsFile *newFile(char *user = 0,int MonID = 0);
+
+
+  //----------------------------------------------------------------------------
+  //! Configure routine 
+  //----------------------------------------------------------------------------
+  virtual int Configure(XrdSysError& error);
+  
+  
   //----------------------------------------------------------------------------
   //! Stat function
   //----------------------------------------------------------------------------
@@ -57,9 +76,61 @@ class EosRucioOfs: public XrdOfs
             const XrdSecEntity*     client,
             const char*             opaque = 0 );
 
-  
-
  private:
+
+  ///! map between space tokend and their priorities
+  std::map<std::string, int> mMapSpace;
+
+  std::string mSiteName; ///! site parameter for the Rucio translation
+  std::string mJsonFile; ///! local json file for the Rucio translation
+  std::string mAgisSite; ///! AGIS site for Rucio translation
+
+
+  //----------------------------------------------------------------------------
+  //! Read space tokens configuration from the AGIS site. If this is successful
+  //! then the map containing the space tokens will be populated in this step.
+  //!
+  //! @return true if reading and parsing were successful, otherwise false 
+  //!
+  //----------------------------------------------------------------------------
+  bool ReadAgisConfig();
+
+
+  //----------------------------------------------------------------------------
+  //! Read local JSON file and populate the amp
+  //!
+  //! @param path local path to JSON file
+  //!
+  //! @return true if JSON file found and parsed successfully, otherwise false
+  //----------------------------------------------------------------------------
+  bool ReadLocalJson(std::string path);
+
+
+
+  //----------------------------------------------------------------------------
+  //! Read file from URL. In particular this will be a JSON file.
+  //!
+  //! @param url url address
+  //!
+  //! @return contents for the file as a string 
+  //! 
+  //----------------------------------------------------------------------------
+  std::string ReadFileFromUrl(std::string url);
+
+  
+  //----------------------------------------------------------------------------
+  //! Handle data read from a remote URL location. According to CURL doc. this 
+  //! function needs to have this signature.
+  //!
+  //! @param ptr pointer to the data just read 
+  //! @param size size of elements
+  //! @param nmemb number of elements (char)
+  //! @param user_specific this is an agrument which can be used by the user 
+  //!        to pass local data between the application and the function that
+  //!        gets invoked by libcurl. In our case this will be the address of 
+  //!        a string in which we read the whole file from the URL.
+  //----------------------------------------------------------------------------
+  static size_t HandleData(void* ptr, size_t size, size_t nmemb, void* user_specific); 
   
 };
 
@@ -109,7 +180,7 @@ class EosRucioOfsFile: public XrdOfsFile
            const char* opaque = 0);
 
  private:
-  
+    
 };
 
 
