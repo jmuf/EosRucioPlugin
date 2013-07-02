@@ -28,13 +28,19 @@
 #include "XrdOfs/XrdOfs.hh"
 #include <string>
 #include <map>
+#include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
+
+//! Forward declaration
+class EosRucioOfsFile;
 
 //------------------------------------------------------------------------------
 //! Class EosRucioOfs built on top of XrdOfs
 //------------------------------------------------------------------------------
 class EosRucioOfs: public XrdOfs
 {
+ friend class EosRucioOfsFile;
+  
  public:
 
   //----------------------------------------------------------------------------
@@ -79,6 +85,74 @@ class EosRucioOfs: public XrdOfs
   //!!!!!!!!!!! XXX !!!!!!!!!!!!!!!!!
   //TODO: move this in the private section or create a new class 
   //----------------------------------------------------------------------------
+  //! Generate the full pfn path by concatenating the space tokens at the 
+  //! current site with the translated lfn.
+  //!
+  //! @param pfn_name parital pfn name obtained using the Translate method
+  //!
+  //! @return full pfn name 
+  //!
+  //----------------------------------------------------------------------------
+  std::string GetValidPfn(std::string pfn_partial);
+
+
+  //----------------------------------------------------------------------------
+  //! Get EOS host redirect address
+  //----------------------------------------------------------------------------
+  inline const std::string GetEosHost() const
+  {
+    return mEosHost;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Get EOS port redirect value
+  //----------------------------------------------------------------------------
+  const unsigned int GetEosPort() const
+  {
+    return mEosPort;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Get uplink host redirect address
+  //----------------------------------------------------------------------------
+  inline const std::string GetUplinkHost() const
+  {
+    return mUplinkHost;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Get uplink port redirect value
+  //----------------------------------------------------------------------------
+  const unsigned int GetUplinkPort() const
+  {
+    return mUplinkPort;
+  }
+
+  
+ private:
+
+  XrdSysMutex mMutexMap; ///! mutex used to sync access to the map
+
+  ///! map between space tokend and requests successfully statisfied 
+  ///! i.e. files for which the stat was succcessful in the corresponding
+  ///! space token.
+  std::map<std::string, uint64_t> mMapSpace;
+
+  std::string mSiteName; ///< site parameter for the Rucio translation
+  std::string mJsonFile; ///< local json file for the Rucio translation
+  std::string mAgisSite; ///< AGIS site for Rucio translation
+  std::string mEosInstance; ///< EOS instance host:port
+  std::string mEosHost; ///< EOS host where requests are forwarded
+  unsigned int mEosPort; ///< EOS port where requestts are forwarded
+  std::string mUplinkInstance; ///< Uplink instance host:port
+  std::string mUplinkHost; ///< uplink host address where failed req are redirected
+  unsigned int mUplinkPort; ///< uplink host port where failed req are redirected
+  
+
+  //----------------------------------------------------------------------------
   //! Translate logical file name to physical file name using the Rucio alg.
   //!
   //! @param lfn logical file name
@@ -89,15 +163,18 @@ class EosRucioOfs: public XrdOfs
   std::string Translate(std::string lfn);
 
 
- private:
+  //----------------------------------------------------------------------------
+  //! Compare method used to sort the list of space tokens by priority
+  //!
+  //! @param first first element 
+  //! @param second second element 
+  //!
+  //! @return true if the first argument goes before the second one argument 
+  //!         in the strict weak ordering it defines, and falso otherwise.
+  //----------------------------------------------------------------------------
+  static bool CompareByPriority(std::pair<std::string, uint64_t>& first,
+                                std::pair<std::string, uint64_t>& second);
 
-  ///! map between space tokend and their priorities
-  std::map<std::string, int> mMapSpace;
-
-  std::string mSiteName; ///! site parameter for the Rucio translation
-  std::string mJsonFile; ///! local json file for the Rucio translation
-  std::string mAgisSite; ///! AGIS site for Rucio translation
-  
 
   //----------------------------------------------------------------------------
   //! Read space tokens configuration from the AGIS site. If this is successful

@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include <cstdio>
 #include <memory>
+#include <list>
 #include <fstream>
 #include <sstream>
 #include <fcntl.h>
@@ -37,6 +38,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
 // The global OFS handle
@@ -95,7 +97,13 @@ EosRucioOfs::EosRucioOfs():
   XrdOfs(),
   mSiteName(""),
   mJsonFile(""),
-  mAgisSite("")
+  mAgisSite(""),
+  mEosInstance(""),
+  mEosHost(""),
+  mEosPort(0),
+  mUplinkInstance(""),
+  mUplinkHost(""),
+  mUplinkPort(0)
 {
   // emtpy
 }
@@ -123,6 +131,12 @@ EosRucioOfs::Configure(XrdSysError& eroute)
   std::string space_tkn;
   eroute.Emsg("EosRucioOfs::Configure", "Calling function");
 
+  // Configure the basix XrdOfs and exit if not successful
+  NoGo = XrdOfs::Configure(eroute);
+  
+  if (NoGo) 
+    return NoGo;
+
   // extract the manager from the config file
   XrdOucStream Config(&eroute, getenv("XRDINSTANCE"));
 
@@ -146,6 +160,8 @@ EosRucioOfs::Configure(XrdSysError& eroute)
       if (!strncmp(var, rucio_tag.c_str(), rucio_tag.length()))
       {
         var += rucio_tag.length();
+
+        // Get overwrite space tokens for local instance 
         std::string option_tag  = "overwriteSE";
 
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
@@ -162,6 +178,7 @@ EosRucioOfs::Configure(XrdSysError& eroute)
           }
         }
 
+        // Get name for local SITE as specified in the Rucio scheme
         option_tag = "site";
         
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
@@ -180,6 +197,7 @@ EosRucioOfs::Configure(XrdSysError& eroute)
           }
         }
 
+        // Get path to local JSON file
         option_tag = "jsonfile";
 
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
@@ -193,7 +211,8 @@ EosRucioOfs::Configure(XrdSysError& eroute)
             mJsonFile = val;
           }
         }
-        
+
+        // Get AGIS site address
         option_tag = "agis";
         
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
@@ -206,11 +225,140 @@ EosRucioOfs::Configure(XrdSysError& eroute)
           {
             mAgisSite = val;
           }
-        }       
+        }
+
+        // Get EOS instance host address
+        option_tag = "eoshost";
+                  
+        if (!strncmp(var, option_tag.c_str(), option_tag.length()))
+        {
+          if (!(val = Config.GetWord()))
+            eroute.Emsg("Configure ", "No EOS redirect instance specified");
+          else
+            mEosHost = val;
+        }
+
+        // Get EOS instance port number
+        option_tag = "eosport";
+        
+        if (!strncmp(var, option_tag.c_str(), option_tag.length()))
+        {
+          if (!(val = Config.GetWord()))
+            eroute.Emsg("Configure ", "No EOS redirect instance specified");
+          else
+          {
+            char* endptr;
+            mEosPort = static_cast<unsigned int>(strtol(val, &endptr, 10));
+            
+            //Check for various possible errors 
+            if ((errno == ERANGE && (mEosPort == LONG_MAX || mEosPort == LONG_MIN))
+                || (errno != 0 && mEosPort == 0))
+            {
+              eroute.Emsg("Configure", "strtol error");
+              mEosPort = 0;
+            }
+            else
+            {
+              if (endptr == val) {
+                eroute.Emsg("Configure", "No digits were found when parsing eosport");
+                mEosPort = 0;
+              }
+            }
+          }
+        }
+
+        // Get Rucio N2N uplink host address
+        option_tag = "uphost";
+        
+        if (!strncmp(var, option_tag.c_str(), option_tag.length()))
+        {
+          if (!(val = Config.GetWord()))
+            eroute.Emsg("Configure ", "No uplink redirect instance specified");
+          else
+            mUplinkHost = val;
+        }
+
+        // Get Rucio N2N uplink port number
+        option_tag = "upport";
+        
+        if (!strncmp(var, option_tag.c_str(), option_tag.length()))
+        {
+          if (!(val = Config.GetWord()))
+            eroute.Emsg("Configure ", "No EOS redirect instance specified");
+          else
+          {
+            char* endptr;
+            mUplinkPort = static_cast<unsigned int>(strtol(val, &endptr, 10));
+            
+            //Check for various possible errors 
+            if ((errno == ERANGE && (mUplinkPort == LONG_MAX || mUplinkPort == LONG_MIN))
+                || (errno != 0 && mUplinkPort == 0))
+            {
+              eroute.Emsg("Configure", "strtol error");
+              mUplinkPort = 0;
+            }
+            else
+            {
+              if (endptr == val) {
+                eroute.Emsg("Configure", "No digits were found when parsing upport");
+                mUplinkPort = 0;
+              }
+            }
+          }
+        }
       }
-    }    
+    }
   }
 
+  // Check that the EOS instance is valid 
+  if (mEosHost.empty() || (mEosPort == 0))
+  {
+    eroute.Emsg("Configure", "EOS redirect instance value missing/invalid",
+                "Example \"eosrucio.eoshost eosatlas.cern.ch\"",
+                "        \"eosrucio.eosport 1094\"");
+    NoGo = 1;
+    return NoGo;
+  }
+  else
+  {
+    std::stringstream sstr;
+    sstr << mEosHost << ":" << mEosPort;
+    mEosInstance = sstr.str();
+    XrdCl::URL url(mEosInstance);
+    
+    if (!url.IsValid())
+    {
+      eroute.Emsg("Configure ", "EOS redirect url is not valid");
+      mEosInstance = "";
+      NoGo = 1;
+    }
+  }
+
+  // Check that the uplink redirect is valid 
+  if (mUplinkHost.empty() || (mUplinkPort == 0))
+  {
+    eroute.Emsg("Configure", "Uplink instance value missing/invalid",
+                "Example \"eosrucio.uphost atlas-xrd-eu.cern.ch\"",
+                "        \"eosrucio.upport 1094\"");
+    NoGo = 1;
+    return NoGo;
+  }
+  else
+  {
+    std::stringstream sstr;
+    sstr << mUplinkHost << ":" << mUplinkPort;
+    mUplinkInstance = sstr.str();
+    XrdCl::URL url(mUplinkInstance);
+    
+    if (!url.IsValid())
+    {
+      eroute.Emsg("Configure ", "Uplink redirect url is not valid");
+      mUplinkInstance = "";
+      NoGo = 1;
+    }
+  }
+
+  // Check that the Rucio site name was specified 
   if (mSiteName.empty())
   {
     eroute.Emsg("Configure", "Mandatory site name value missing.",
@@ -366,13 +514,92 @@ EosRucioOfs::Translate(std::string lfn)
     OfsEroute.Say("MD5 string is: ", md5_string.c_str());   
 
     std::stringstream sstr;
-    sstr << "/rucio/" << scope << "/" << md5_string.substr(0, 2) << "/" <<
-      md5_string.substr(2, 4) << "/" << file_name;
+    sstr << "rucio/" << scope << "/" << md5_string.substr(0, 2) << "/" <<
+      md5_string.substr(2, 2) << "/" << file_name;
     pfn = sstr.str();    
   }
 
   OfsEroute.Say("Pfn is: ", pfn.c_str());
   return pfn;
+}
+
+
+//------------------------------------------------------------------------------
+// Compare method used to sort the list of space tokens by priority
+//------------------------------------------------------------------------------
+bool 
+EosRucioOfs::CompareByPriority(std::pair<std::string, uint64_t>& first,
+                               std::pair<std::string, uint64_t>& second)
+{
+
+  if (first.second > second.second) return true;
+  else return false;
+}
+
+
+//------------------------------------------------------------------------------
+// Generate the full pfn path by concatenating the space tokens at the current
+// site with the translated lfn
+//------------------------------------------------------------------------------
+std::string 
+EosRucioOfs::GetValidPfn(std::string lfn)
+{
+  bool found_file = false;
+  std::string pfn_full = "";
+  std::string pfn_partial = Translate(lfn);
+  std::list< std::pair<std::string, uint64_t> > ordered_list;
+  mMutexMap.Lock();   // -->
+
+  for (auto it = mMapSpace.begin(); it != mMapSpace.end(); ++it)
+  {
+    ordered_list.push_back(*it);
+  }
+  mMutexMap.UnLock(); // <--
+
+  ordered_list.sort(EosRucioOfs::CompareByPriority);
+  std::stringstream sstr;
+  XrdCl::URL url(mEosInstance);
+  XrdCl::FileSystem fs(url);
+  XrdCl::StatInfo *response = 0;
+  XrdCl::Status status;
+
+  for (auto it = ordered_list.begin(); it != ordered_list.end(); ++it)
+  {
+    sstr << "Path: " << it->first << " with priority: " << it->second;
+    OfsEroute.Say(sstr.str().c_str());
+    sstr.str("");
+
+    sstr << it->first << pfn_partial;
+    pfn_full = sstr.str();
+
+    // Do stat
+    OfsEroute.Say("Trying to stat file: ", pfn_full.c_str());
+    status = fs.Stat(pfn_full, response);
+
+    if (status.IsOK() && response)
+    {
+      OfsEroute.Say("Stat successful");
+      if (response->TestFlags(XrdCl::StatInfo::IsReadable |
+                              XrdCl::StatInfo::IsWritable))
+      {
+        // Update the map value
+        mMutexMap.Lock();    // -->
+        mMapSpace[it->first] = it->second + 1;
+        mMutexMap.UnLock();  // <--
+        found_file = true;
+        break;
+      }
+
+      delete response;
+      response = 0;
+    }
+  }
+
+  if (!found_file)
+    pfn_full.clear();
+  
+  OfsEroute.Say("Full pfn is: ", pfn_full.c_str());
+  return pfn_full;
 }
 
 
@@ -500,8 +727,7 @@ EosRucioOfs::ReadAgisConfig()
                         if (space_tkn.at(space_tkn.length() - 1) != '/')
                           space_tkn += '/';
 
-                        auto res_pair = mMapSpace.insert(std::make_pair(space_tkn,
-                                                                        entries[1].GetInt()));
+                        auto res_pair = mMapSpace.insert(std::make_pair(space_tkn, 0));
 
                         if (!res_pair.second)
                         {
@@ -534,9 +760,6 @@ bool
 EosRucioOfs::ReadLocalJson(std::string path)
 {
   bool done = false;
-  // TODO: this default value should be dropped once the localJSON file is
-  // consisten with the AGIS format where the priority is also specified
-  int default_priority = 3;
   std::string site_tag = "rc_site";
   std::string aproto_tag = "aprotocols";
   std::string space_tkn;
@@ -590,8 +813,7 @@ EosRucioOfs::ReadLocalJson(std::string path)
                     if (space_tkn.at(space_tkn.length() - 1) != '/')
                       space_tkn += '/';
 
-                    auto res_pair = mMapSpace.insert(std::make_pair(space_tkn,
-                                                                    default_priority));
+                    auto res_pair = mMapSpace.insert(std::make_pair(space_tkn, 0));
                     
                     if (!res_pair.second)
                     {
@@ -649,9 +871,30 @@ EosRucioOfsFile::open(const char* fileName,
 
   // TODO: compute the Rucio pfn using the algorithm and redirect to the correct
   // location. Also need to do a stat.
-  std::string pfn = gOFS->Translate(fileName);
-  
-  return SFS_REDIRECT;
+  std::string pfn = gOFS->GetValidPfn(fileName);
+  std::string ret_string;
+
+  if (pfn.empty())
+  {
+    OfsEroute.Emsg("open", "Error, file not found in EOS, redirect to uplink host");
+    ret_string = gOFS->GetUplinkHost();
+    error.setErrData(ret_string.c_str());
+    error.setErrCode(gOFS->GetUplinkPort());
+    return gOFS->fsError(error, SFS_REDIRECT);
+  }
+  else
+  {
+    // Add pfn as opaque information with the tag eos.lfn
+    OfsEroute.Say("Redirect to EOS instance");
+    ret_string = gOFS->GetEosHost();
+    ret_string += "?eos.lfn=";
+    ret_string += pfn;
+    ret_string += "&eos.app=rucio";
+    error.setErrData(ret_string.c_str());
+    error.setErrCode(gOFS->GetEosPort());
+    
+    return gOFS->fsError(error, SFS_REDIRECT);
+  }
 }
 
 
