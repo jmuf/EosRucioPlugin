@@ -1,0 +1,23 @@
+# Configuration file for xrootd daemon - EOS Rucio N2N
+# Load the cusotm EosRucioOfs library 
+xrootd.fslib libEosRucioOfs.so
+#Loasd the custom libEosRucioCms library
+ofs.cmslib libEosRucioCms.so
+xrd.port 2094
+oss.alloc * * 80
+xrootd.trace all
+all.role manager
+all.adminpath /var/spool/xrootd
+all.pidpath /var/run/xrootd
+all.export /atlas
+# Speicfy Rucio configuration parameters
+eosrucio.overwriteSE /eos/atlas/opstest/elvin
+eosrucio.site CERN-EOS-RUCIO
+eosrucio.jsonfile /tmp/space_tokens.json
+eosrucio.agis http://atlas-agis-api.cern.ch/request/service/query/get_se_services/?json&flavour=XROOTD
+# Specify the EOS instance to which requests are redirected
+eosrucio.eoshost eosatlas.cern.ch
+eosrucio.eosport 1094
+# Specify the redirection instance in case the file is not in EOS
+eosrucio.uphost atlas-xrd-eu.cern.ch
+eosrucio.upport 1094

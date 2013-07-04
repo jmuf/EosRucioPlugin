@@ -1,0 +1,19 @@
+# FED xrootd+cmsd config sitting on top of xrootd Rucio N2N daemon 
+xrd.port 1098 if exec cmsd
+xrd.port 1094 if exec xrootd
+all.role server
+all.adminpath /var/spool/xrootd
+all.pidpath /var/run/xrootd
+all.export /atlas
+xrootd.trace all
+cms.trace debug
+# Hook underneath the EU redirector
+all.manager atlas-xrd-eu.cern.ch.+ 1098
+# Enable poxy mode
+ofs.osslib libXrdPss.so
+pss.origin xrdfed15.cern.ch:2094
+# Enable forwarding of meta-data request i.e stats
+xrootd.redirect xrdfed15.cern.ch:2094 /atlas
+cms.delay qdl 15 lookup 15
+## monitoring to US - temp setup
+xrootd.monitor all auth rbuff 16k window 10s dest redir files user atl-prod05.slac.stanford.edu:9930
