@@ -5,7 +5,7 @@
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2013 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -26,21 +26,26 @@ include_directories( ./
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} )
 
-add_library( EosRucioOfs MODULE
-	     EosRucioOfs.cc         EosRucioOfs.hh
-	     )
+add_library(EosRucioCms MODULE
+	    EosRucioCms.cc         EosRucioCms.hh
+	    )		 
 
-target_link_libraries( EosRucioOfs XrdOfs XrdServer XrdCl ${CURL_LIBRARIES} crypto)
+add_library(EosRucioOfs MODULE
+	    EosRucioOfs.cc         EosRucioOfs.hh
+	    )
+
+target_link_libraries(EosRucioCms XrdCl ${CURL_LIBRARIES} crypto)
+target_link_libraries(EosRucioOfs XrdOfs XrdServer XrdCl)
 
 if (Linux)
-  set_target_properties ( EosRucioOfs PROPERTIES
+  set_target_properties (EosRucioCms EosRucioOfs PROPERTIES
     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
   )
 endif(Linux)
 
-install( TARGETS EosRucioOfs
+install( TARGETS EosRucioCms EosRucioOfs
          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
