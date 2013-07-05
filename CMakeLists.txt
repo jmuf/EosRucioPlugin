@@ -41,6 +41,15 @@ endif (RELEASE)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+# force /usr/ installation prefix
+set(CMAKE_INSTALL_PREFIX /usr)
+set(CMAKE_INSTALL_SYSCONFDIR /etc)
+set(CMAKE_INSTALL_SBINDIR /sbin)
+
+if (PREFIX) 
+   set (CMAKE_INSTALL_PREFIX ${PREFIX})
+endif (PREFIX)
+
 set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -std=gnu++0x -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" ")
 
 if(MacOSX)
@@ -53,8 +62,8 @@ find_package(XRootD REQUIRED)
 find_package(curl REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-set(CMAKE_INSTALL_PREFIX /usr/)
 add_subdirectory(src)
+add_subdirectory(etc)
 
 ################################################################################
 # source packaging 

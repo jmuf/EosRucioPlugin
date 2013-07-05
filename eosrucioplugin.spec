@@ -11,9 +11,10 @@ Source:        %{name}-%{version}-%{release}.tar.gz
 BuildRoot:     %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.6
+BuildRequires: curl
+BuildRequires: openssl, openssl-devel
 #BuildRequires: xrootd-server-devel >= 3.3.0
 #BuildRequires: xrootd-private-devel >= 3.3.0
-
 
 %description
 Rucio plugin for EOS for doing name translations
@@ -49,5 +50,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 /usr/lib64/libEosRucioOfs.so
-
+/usr/lib64/libEosRucioCms.so
+%config(noreplace) /etc/xrd.cf.rucio.example
+%config(noreplace) /etc/xrd.cf.fed.example
 
