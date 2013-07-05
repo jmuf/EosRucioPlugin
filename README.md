@@ -20,7 +20,7 @@ In order to build the RPM package for this project issue the following commands:
 * cmake ../
 * make rpm
 
-Instalation
+Installation
 -----------
 
 For the translation to work and the server to join the federation one needs the following configuration of daemons:
