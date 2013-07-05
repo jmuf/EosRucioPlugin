@@ -10,6 +10,16 @@ is successful then the client is redirected to the EOS instace with the pfn adde
 tag **"eos.lfn="** (the confusion between lfn and pfn here is due to the fact that for ATLAS the file name in EOS is a 
 pfn but in reality in EOS this is just an lfn).
 
+
+Build RPM
+---------
+
+In order to build the RPM package for this project issue the following commands:
+* mkdir build
+* cd build
+* cmake ../
+* make rpm
+
 Instalation
 -----------
 
