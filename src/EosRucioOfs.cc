@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // File: EosRucioOfs.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -37,16 +37,16 @@
 EosRucioOfs* gOFS;
 
 extern XrdSysError OfsEroute;
-extern XrdOfs     *XrdOfsFS;
+extern XrdOfs* XrdOfsFS;
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 extern "C"
 {
-  XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
-                                        XrdSysLogger     *lp,
-                                        const char       *configfn)
+  XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
+                                        XrdSysLogger* lp,
+                                        const char* configfn)
   {
     // Do the herald thing
     //
@@ -55,27 +55,25 @@ extern "C"
     XrdOucString version = "RuciOfs (Object Storage File System) ";
     version += VERSION;
     OfsEroute.Say("++++++ (c) 2013 CERN/IT-DSS ", version.c_str());
-
     // Initialize the subsystems
     gOFS = new EosRucioOfs();
-    
     gOFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
-    if ( gOFS->Configure(OfsEroute) ) return 0;
-    
+    if (gOFS->Configure(OfsEroute)) return 0;
+
     XrdOfsFS = gOFS;
     return gOFS;
   }
 }
 
 //------------------------------------------------------------------------------
-// Constructor 
+// Constructor
 //------------------------------------------------------------------------------
 EosRucioOfs::EosRucioOfs():
-    XrdOfs(),
-    mUplinkInstance(""),
-    mUplinkHost(""),
-    mUplinkPort(0)
+  XrdOfs(),
+  mUplinkInstance(""),
+  mUplinkHost(""),
+  mUplinkPort(0)
 {
   // empty
 }
@@ -102,11 +100,10 @@ EosRucioOfs::Configure(XrdSysError& error)
   const char* val;
   std::string space_tkn;
   error.Emsg("EosRucioOfs::Configure", "Calling function");
-
   // Configure the basix XrdOfs and exit if not successful
   NoGo = XrdOfs::Configure(error);
-  
-  if (NoGo) 
+
+  if (NoGo)
     return NoGo;
 
   // extract the manager from the config file
@@ -126,16 +123,15 @@ EosRucioOfs::Configure(XrdSysError& error)
 
     Config.Attach(cfgFD);
     std::string rucio_tag = "eosrucio.";
-    
+
     while ((var = Config.GetMyFirstWord()))
     {
       if (!strncmp(var, rucio_tag.c_str(), rucio_tag.length()))
       {
         var += rucio_tag.length();
-
         // Get Rucio N2N uplink host address
         std::string option_tag = "uphost";
-        
+
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
         {
           if (!(val = Config.GetWord()))
@@ -146,7 +142,7 @@ EosRucioOfs::Configure(XrdSysError& error)
 
         // Get Rucio N2N uplink port number
         option_tag = "upport";
-        
+
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
         {
           if (!(val = Config.GetWord()))
@@ -155,8 +151,8 @@ EosRucioOfs::Configure(XrdSysError& error)
           {
             char* endptr;
             mUplinkPort = static_cast<unsigned int>(strtol(val, &endptr, 10));
-            
-            //Check for various possible errors 
+
+            //Check for various possible errors
             if ((errno == ERANGE && (mUplinkPort == LONG_MAX || mUplinkPort == LONG_MIN))
                 || (errno != 0 && mUplinkPort == 0))
             {
@@ -165,7 +161,8 @@ EosRucioOfs::Configure(XrdSysError& error)
             }
             else
             {
-              if (endptr == val) {
+              if (endptr == val)
+              {
                 error.Emsg("Configure", "No digits were found when parsing upport");
                 mUplinkPort = 0;
               }
@@ -176,12 +173,12 @@ EosRucioOfs::Configure(XrdSysError& error)
     }
   }
 
-  // Check that the uplink redirect is valid 
+  // Check that the uplink redirect is valid
   if (mUplinkHost.empty() || (mUplinkPort == 0))
   {
     error.Emsg("Configure", "Uplink instance value missing/invalid",
-                "Example \"eosrucio.uphost atlas-xrd-eu.cern.ch\"",
-                "        \"eosrucio.upport 1094\"");
+               "Example \"eosrucio.uphost atlas-xrd-eu.cern.ch\"",
+               "        \"eosrucio.upport 1094\"");
     NoGo = 1;
     return NoGo;
   }
@@ -191,7 +188,7 @@ EosRucioOfs::Configure(XrdSysError& error)
     sstr << mUplinkHost << ":" << mUplinkPort;
     mUplinkInstance = sstr.str();
     XrdCl::URL url(mUplinkInstance);
-    
+
     if (!url.IsValid())
     {
       error.Emsg("Configure ", "Uplink redirect url is not valid");
@@ -199,7 +196,7 @@ EosRucioOfs::Configure(XrdSysError& error)
       NoGo = 1;
     }
   }
-  
+
   return NoGo;
 }
 
@@ -212,38 +209,39 @@ EosRucioOfs::Configure(XrdSysError& error)
 //! translation already done.
 //------------------------------------------------------------------------------
 int
-EosRucioOfs::stat( const char*             path,
-                   struct stat*            buf,
-                   XrdOucErrInfo&          out_error,
-                   const XrdSecEntity*     client,
-                   const char*             opaque )
+EosRucioOfs::stat(const char*             path,
+                  struct stat*            buf,
+                  XrdOucErrInfo&          out_error,
+                  const XrdSecEntity*     client,
+                  const char*             opaque)
 {
-  int retc = XrdOfs::stat( path, buf, out_error, client, opaque );
+  int retc = XrdOfs::stat(path, buf, out_error, client, opaque);
 
-  if ( retc == SFS_REDIRECT ) {
+  if (retc == SFS_REDIRECT)
+  {
     std::string err_data = out_error.getErrData();
-   
-    if ( err_data == mUplinkHost ) {
+
+    if (err_data == mUplinkHost)
+    {
       //........................................................................
       // If the file is not in EOS we redirect up to a meta manager and we
       // signal that we don't have the file by replying SFS_ERROR
       //........................................................................
-      OfsEroute.Emsg( "stat", "error Rucio file is not in EOS: ", path);
+      OfsEroute.Emsg("stat", "Not found int EOS, Rucio file: ", path);
       return SFS_ERROR;
     }
-    else {  
+    else
+    {
       // We know that the file is in EOS and accessible since the EosRucioCms::
       // Locate methos stat-ed the file. Therefore, here we just to a dummy
       // stat to populate the stat buffer passed to this functon.
-      
       lstat("/etc/passwd", buf);
-      OfsEroute.Say("EosRucioOfs::stat", "Rucio file was found in EOS");
+      OfsEroute.Emsg("stat", "Found in EOS Rucio file: ", path);
       return SFS_OK;
     }
   }
 
   return retc;
 }
-
 
 

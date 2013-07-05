@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // File: EosRucioOfs.hh
 // Author: Elvin-Alin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -34,40 +34,40 @@
 //------------------------------------------------------------------------------
 class EosRucioOfs: public XrdOfs
 {
- public:
+  public:
 
-  //----------------------------------------------------------------------------
-  //! Constuctor
-  //----------------------------------------------------------------------------
-  EosRucioOfs();
-
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~EosRucioOfs();
+    //--------------------------------------------------------------------------
+    //! Constuctor
+    //--------------------------------------------------------------------------
+    EosRucioOfs();
 
 
-  //----------------------------------------------------------------------------
-  //! Configure routine 
-  //----------------------------------------------------------------------------
-  virtual int Configure(XrdSysError& error);
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~EosRucioOfs();
 
- 
-  //----------------------------------------------------------------------------
-  //! Stat function
-  //----------------------------------------------------------------------------
-  int stat( const char*             path,
-            struct stat*            buf,
-            XrdOucErrInfo&          out_error,
-            const XrdSecEntity*     client,
-            const char*             opaque = 0 );
 
- private:
+    //--------------------------------------------------------------------------
+    //! Configure routine
+    //--------------------------------------------------------------------------
+    virtual int Configure(XrdSysError& error);
 
-  std::string mUplinkInstance; ///< Uplink instance host:port
-  std::string mUplinkHost; ///< uplink host address where failed req are redirected
-  unsigned int mUplinkPort; ///< uplink host port where failed req are redirected
+
+    //--------------------------------------------------------------------------
+    //! Stat function
+    //--------------------------------------------------------------------------
+    int stat(const char* path,
+             struct stat* buf,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client,
+             const char* opaque = 0);
+
+  private:
+
+    std::string mUplinkInstance; ///< Uplink instance host:port
+    std::string mUplinkHost; ///< uplink host address where failed req are redirected
+    unsigned int mUplinkPort; ///< uplink host port where failed req are redirected
 };
 
 
@@ -78,10 +78,5 @@ extern EosRucioOfs* gOFS;
 
 
 #endif //__EOS_EOSRUCIOOFS_HH__
-
-
-
-
-
 
 
