@@ -31,8 +31,8 @@ For the translation to work and the server to join the federation one needs the 
 Configuration
 -------------
 
-The project provides in the **config** directory configuration files examples for all three daemons that need 
-to run on the box. Besides the ususal xrootd and cms configuration directives, we introduce a new tag: **eosrucio**
+The project provides in the **config** directory configuration file examples for all three daemons that need 
+to run on the box. Besides the usual xrootd and cms configuration directives, we introduce a new tag: **eosrucio**
 used to configure various parameter values relating to the **Rucio** scheme. Below one can find a brief description
 of them.
 
